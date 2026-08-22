@@ -1,0 +1,168 @@
+<!doctype html><html lang=ko><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>엘리베이터 지금 몇 층?</title>
+<meta name=theme-color content="#0b0e14">
+<style>
+:root{--bg:#0b0e14;--fg:#e8eef7;--mut:#7d8899;--card:#141a23;--line:#222b38;
+      --ok:#3fb950;--warn:#d29922;--bad:#f85149}
+*{box-sizing:border-box}
+body{margin:0;padding:18px 16px 40px;background:var(--bg);color:var(--fg);
+     font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+     max-width:520px;margin-inline:auto;-webkit-text-size-adjust:100%}
+h1{font-size:15px;font-weight:600;color:var(--mut);margin:0 0 14px;letter-spacing:.02em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+      padding:26px 20px;text-align:center}
+.big{font-size:clamp(88px,30vw,132px);font-weight:800;line-height:.95;
+     letter-spacing:-.03em;transition:color .25s}
+.big small{font-size:.3em;font-weight:700;margin-left:.1em;letter-spacing:0}
+.rel{font-size:19px;font-weight:700;margin-top:6px}
+.age{margin-top:14px;font-size:14px;display:inline-flex;align-items:center;gap:7px;
+     padding:6px 14px;border-radius:99px;background:#0b0e14;border:1px solid var(--line)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
+.blink{animation:b 1.6s ease-in-out infinite}
+@keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.mut{color:var(--mut)}
+.bgok{background:var(--ok)}.bgwarn{background:var(--warn)}.bgbad{background:var(--bad)}
+.note{background:#1d1608;border:1px solid #3d2f0c;color:#e3c268;border-radius:12px;
+      padding:12px 14px;margin-top:12px;font-size:14px;text-align:left;display:none}
+.note.bad{background:#1f1113;border-color:#4a1f22;color:#f0a3a0}
+.pick{display:flex;gap:8px;align-items:center;margin-top:18px;font-size:14px;color:var(--mut)}
+select{background:var(--card);color:var(--fg);border:1px solid var(--line);
+       border-radius:9px;padding:9px 11px;font-size:15px}
+h2{font-size:13px;color:var(--mut);font-weight:600;margin:26px 0 8px;letter-spacing:.04em}
+ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);
+   border-radius:12px;overflow:hidden}
+li{display:flex;justify-content:space-between;padding:11px 15px;font-size:15px}
+li+li{border-top:1px solid var(--line)}
+li b{font-variant-numeric:tabular-nums}
+li span{color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums}
+footer{margin-top:24px;color:var(--mut);font-size:12px;text-align:center;line-height:1.7}
+</style>
+
+<h1>엘리베이터 실시간 층수</h1>
+
+<div class=card>
+  <div class="big mut" id=fl>–</div>
+  <div class="rel mut" id=rel>&nbsp;</div>
+  <div class=age><i class="dot" id=dot></i><span id=age>불러오는 중…</span></div>
+  <div class=note id=note></div>
+  <div class=pick>
+    <span>내 층</span>
+    <select id=my><option value="">선택 안 함</option></select>
+  </div>
+</div>
+
+<h2>최근 이동</h2>
+<ul id=log><li><span>기록을 불러오는 중…</span></li></ul>
+
+<footer>
+  스마트 엘리베이터 프로젝트 · 승강장 표시기를 카메라로 읽습니다<br>
+  <span id=meta></span>
+</footer>
+
+<script>
+const URL_="https://czsyjjgerdhtjqwbhnry.supabase.co/rest/v1";
+const KEY="sb_publishable_cQ5rwL6BfCDy555B_e72ZA_iihmUrhY";
+const DEV="F1";
+const H={apikey:KEY};
+
+// 🔴 이 페이지의 유일한 실패 모드는 "틀린 층을 자신 있게 말하는 것" 이다.
+//    학생이 헛걸음한다. 그래서 값의 나이를 값과 같은 크기로 취급한다.
+const FRESH=45, STALE=180, BLIND=40;
+
+const $=id=>document.getElementById(id);
+const num=s=>{const m=String(s).match(/-?\d+/);return m?+m[0]:null};
+
+function ago(sec){
+  if(sec<10) return "방금";
+  if(sec<60) return sec+"초 전";
+  if(sec<3600) return Math.floor(sec/60)+"분 전";
+  if(sec<86400) return Math.floor(sec/3600)+"시간 전";
+  return Math.floor(sec/86400)+"일 전";
+}
+function hhmm(iso){
+  const d=new Date(iso);
+  return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+
+// 내 층 대비 어디 있는지. "타러 갈까 계단 갈까" 가 이 페이지의 목적이다.
+function relative(cur,my){
+  if(my===null||cur===null) return "";
+  const d=cur-my;
+  if(d===0) return "지금 내 층";
+  return Math.abs(d)+"층 "+(d>0?"위":"아래");
+}
+
+let lastFloor=null;
+
+async function tick(){
+  let st=null;
+  try{
+    const r=await fetch(URL_+"/floor_state?select=*&device=eq."+DEV,{headers:H,cache:"no-store"});
+    st=(await r.json())[0];
+  }catch(e){}
+
+  if(!st){
+    $("fl").textContent="–"; $("fl").className="big mut";
+    $("age").textContent="서버에 연결할 수 없습니다";
+    $("dot").className="dot bgbad"; return;
+  }
+
+  // 🔴 나이는 서버가 찍은 시각으로 잰다. 보드에는 시계가 없다.
+  const age=Math.max(0,Math.round((Date.now()-new Date(st.updated_at))/1000));
+  const blind=st.blind_s|0;
+  const dead=age>STALE, old=age>FRESH;
+
+  $("fl").innerHTML=st.floor==="?"?'<span class=warn>?</span>'
+                    :st.floor+"<small>층</small>";
+  $("fl").className="big "+(dead?"bad":(old||blind>BLIND?"warn":"ok"));
+
+  const my=$("my").value===""?null:+$("my").value;
+  const rel=relative(num(st.floor),my);
+  $("rel").textContent=(dead||blind>BLIND)?"":rel;
+  $("rel").className="rel "+(rel==="지금 내 층"?"ok":"mut");
+
+  $("age").textContent=dead?("마지막 확인 "+ago(age)):
+    (age<10?"실시간":ago(age)+" 확인");
+  $("dot").className="dot "+(dead?"bgbad":(old?"bgwarn":"bgok"))+(dead?"":" blink");
+
+  // 두 가지 고장은 다른 문장으로 말해야 한다.
+  const n=$("note");
+  if(dead){
+    n.className="note bad"; n.style.display="block";
+    n.innerHTML="<b>장치가 응답하지 않습니다.</b><br>위 숫자는 "+ago(age)+
+      " 값이라 지금과 다를 수 있습니다.";
+  }else if(blind>BLIND){
+    n.className="note"; n.style.display="block";
+    n.innerHTML="<b>표시기를 "+ago(blind)+"부터 읽지 못하고 있습니다.</b><br>"+
+      "장치는 살아 있지만 화면이 가려졌거나 카메라가 틀어졌을 수 있습니다.";
+  }else n.style.display="none";
+
+  $("meta").textContent="기기 "+st.device+" · 부팅 "+st.boot+"회 · 가동 "+
+    Math.floor((st.uptime_s||0)/60)+"분 · 일치도 "+(st.score||0).toFixed(2);
+
+  if(st.floor!==lastFloor){ lastFloor=st.floor; loadLog(); }
+}
+
+async function loadLog(){
+  try{
+    const r=await fetch(URL_+"/floor_events?select=floor,at&device=eq."+DEV+
+      "&order=at.desc&limit=12",{headers:H,cache:"no-store"});
+    const ev=await r.json();
+    $("log").innerHTML=ev.length?ev.map(e=>{
+      const s=Math.round((Date.now()-new Date(e.at))/1000);
+      return "<li><b>"+e.floor+"층</b><span>"+hhmm(e.at)+" · "+ago(s)+"</span></li>";
+    }).join(""):"<li><span>아직 기록이 없습니다</span></li>";
+  }catch(e){}
+}
+
+const sel=$("my");
+for(let f=15;f>=1;f--){const o=document.createElement("option");o.value=f;o.textContent=f+"층";sel.appendChild(o)}
+sel.value=localStorage.getItem("myfloor")||"";
+sel.onchange=()=>{localStorage.setItem("myfloor",sel.value);tick()};
+
+tick(); loadLog();
+setInterval(tick,3000);
+setInterval(loadLog,30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();loadLog()}});
+</script></html>
