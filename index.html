@@ -122,9 +122,12 @@ async function tick(){
   $("rel").textContent=(dead||blind>BLIND)?"":rel;
   $("rel").className="rel "+(rel==="지금 내 층"?"ok":"mut");
 
+  // ⚠️ 통신이 살아있는 것과 판독이 되는 것은 다르다.
+  //    못 읽는 중인데 "실시간" 이라고 쓰면 배지가 숫자를 반박한다.
   $("age").textContent=dead?("마지막 확인 "+ago(age)):
-    (age<10?"실시간":ago(age)+" 확인");
-  $("dot").className="dot "+(dead?"bgbad":(old?"bgwarn":"bgok"))+(dead?"":" blink");
+    (blind>BLIND?"장치는 연결됨":(age<10?"실시간":ago(age)+" 확인"));
+  $("dot").className="dot "+(dead?"bgbad":((old||blind>BLIND)?"bgwarn":"bgok"))
+                    +(dead?"":" blink");
 
   // 두 가지 고장은 다른 문장으로 말해야 한다.
   const n=$("note");
