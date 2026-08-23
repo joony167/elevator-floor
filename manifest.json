@@ -1,0 +1,15 @@
+{
+  "name": "엘리베이터 실시간 층수",
+  "short_name": "엘리베이터",
+  "description": "승강장 표시기를 카메라로 읽어 지금 몇 층인지 알려줍니다.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e14",
+  "theme_color": "#2563eb",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

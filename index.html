@@ -1,64 +1,143 @@
 <!doctype html><html lang=ko><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>엘리베이터 지금 몇 층?</title>
-<meta name=theme-color content="#0b0e14">
+<meta name=theme-color content="#0b0e14" media="(prefers-color-scheme:dark)">
+<meta name=theme-color content="#2563eb" media="(prefers-color-scheme:light)">
+<link rel=manifest href=manifest.json>
+<meta name=apple-mobile-web-app-capable content=yes>
+<meta name=apple-mobile-web-app-status-bar-style content=black-translucent>
+<link rel=apple-touch-icon href=icon.svg>
 <style>
-:root{--bg:#0b0e14;--fg:#e8eef7;--mut:#7d8899;--card:#141a23;--line:#222b38;
-      --ok:#3fb950;--warn:#d29922;--bad:#f85149}
+/* 다크가 기본. 승강장은 어둡고, 밤에 계단이냐 엘리베이터냐를 정하는 화면이다. */
+:root{
+  --bg:#0b0e14; --fg:#e8eef7; --mut:#7d8899; --dim:#5b6675;
+  --card:#141a23; --line:#222b38; --sunk:#0b0e14;
+  --brand:#3b82f6; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --okbg:#0e2013; --warnbg:#1d1608; --warnln:#3d2f0c; --warnfg:#e3c268;
+  --badbg:#1f1113; --badln:#4a1f22; --badfg:#f0a3a0;
+}
+@media (prefers-color-scheme:light){
+  :root{
+    --bg:#f6f8fb; --fg:#0f172a; --mut:#64748b; --dim:#94a3b8;
+    --card:#ffffff; --line:#e2e8f0; --sunk:#f1f5f9;
+    --brand:#2563eb; --ok:#16a34a; --warn:#b45309; --bad:#dc2626;
+    --okbg:#f0fdf4; --warnbg:#fffbeb; --warnln:#fde68a; --warnfg:#92400e;
+    --badbg:#fef2f2; --badln:#fecaca; --badfg:#991b1b;
+  }
+}
 *{box-sizing:border-box}
-body{margin:0;padding:18px 16px 40px;background:var(--bg);color:var(--fg);
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);
      font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-     max-width:520px;margin-inline:auto;-webkit-text-size-adjust:100%}
-h1{font-size:15px;font-weight:600;color:var(--mut);margin:0 0 14px;letter-spacing:.02em}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
-      padding:26px 20px;text-align:center}
+     -webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+.wrap{max-width:520px;margin-inline:auto;
+      padding:0 16px calc(36px + env(safe-area-inset-bottom))}
+
+/* 상단바 */
+header{background:var(--brand);color:#fff;padding-top:env(safe-area-inset-top)}
+header .in{max-width:520px;margin-inline:auto;height:54px;display:flex;
+           align-items:center;justify-content:center;gap:8px;
+           font-size:15px;font-weight:600;letter-spacing:.01em}
+
+/* 층수 카드 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+      padding:28px 20px 22px;text-align:center;margin-top:18px;
+      box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .big{font-size:clamp(88px,30vw,132px);font-weight:800;line-height:.95;
-     letter-spacing:-.03em;transition:color .25s}
-.big small{font-size:.3em;font-weight:700;margin-left:.1em;letter-spacing:0}
-.rel{font-size:19px;font-weight:700;margin-top:6px}
-.age{margin-top:14px;font-size:14px;display:inline-flex;align-items:center;gap:7px;
-     padding:6px 14px;border-radius:99px;background:#0b0e14;border:1px solid var(--line)}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
+     letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+     transition:color .25s;color:var(--dim)}
+.big small{font-size:.28em;font-weight:700;margin-left:.08em;letter-spacing:0}
+.big.pop{animation:pop .45s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{0%{transform:translateY(9px) scale(.96);opacity:.35}100%{transform:none;opacity:1}}
+.rel{font-size:19px;font-weight:700;margin-top:4px;min-height:1.6em;color:var(--mut)}
+.rel.here{color:var(--ok)}
+
+/* 상태 배지 — 통신 상태와 판독 상태를 한 배지에 섞지 않는다 */
+.badge{margin-top:14px;font-size:14px;font-weight:600;
+       display:inline-flex;align-items:center;gap:7px;
+       padding:7px 15px;border-radius:99px;
+       background:var(--sunk);border:1px solid var(--line)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
 .blink{animation:b 1.6s ease-in-out infinite}
 @keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
-.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.mut{color:var(--mut)}
-.bgok{background:var(--ok)}.bgwarn{background:var(--warn)}.bgbad{background:var(--bad)}
-.note{background:#1d1608;border:1px solid #3d2f0c;color:#e3c268;border-radius:12px;
-      padding:12px 14px;margin-top:12px;font-size:14px;text-align:left;display:none}
-.note.bad{background:#1f1113;border-color:#4a1f22;color:#f0a3a0}
-.pick{display:flex;gap:8px;align-items:center;margin-top:18px;font-size:14px;color:var(--mut)}
-select{background:var(--card);color:var(--fg);border:1px solid var(--line);
-       border-radius:9px;padding:9px 11px;font-size:15px}
-h2{font-size:13px;color:var(--mut);font-weight:600;margin:26px 0 8px;letter-spacing:.04em}
-ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);
-   border-radius:12px;overflow:hidden}
-li{display:flex;justify-content:space-between;padding:11px 15px;font-size:15px}
+@media (prefers-reduced-motion:reduce){.blink,.big.pop{animation:none}}
+
+/* 두 가지 고장은 다른 문장으로 말한다 */
+.note{border-radius:12px;padding:12px 14px;margin-top:14px;
+      font-size:14px;line-height:1.55;text-align:left;display:none}
+.note.warn{background:var(--warnbg);border:1px solid var(--warnln);color:var(--warnfg)}
+.note.bad {background:var(--badbg); border:1px solid var(--badln); color:var(--badfg)}
+
+/* 이 장치가 뭔가요? — 페이지를 늘리지 않으려고 접었다 편다 */
+details{margin-top:16px;background:var(--card);border:1px solid var(--line);
+        border-radius:14px;overflow:hidden}
+summary{list-style:none;cursor:pointer;padding:14px 16px;font-size:15px;
+        color:var(--mut);display:flex;align-items:center;justify-content:space-between}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"▸";color:var(--dim);transition:transform .2s}
+details[open] summary::after{transform:rotate(90deg)}
+details[open] summary{border-bottom:1px solid var(--line);color:var(--fg);font-weight:600}
+.body{padding:15px 16px 17px;font-size:14px;line-height:1.7;color:var(--mut)}
+.body p{margin:0 0 10px}
+.body p:last-child{margin:0}
+.body b{color:var(--fg)}
+
+/* 의견 남기기 — 받을 곳이 정해지기 전에는 아예 그리지 않는다.
+   죽은 링크를 눌러보게 하는 것이 링크가 없는 것보다 나쁘다. */
+.link{display:none;margin-top:10px;padding:14px 16px;font-size:15px;
+      color:var(--mut);text-decoration:none;
+      background:var(--card);border:1px solid var(--line);border-radius:14px}
+.link::after{content:"▸";float:right;color:var(--dim)}
+
+h2{font-size:12px;color:var(--mut);font-weight:700;margin:26px 0 8px;
+   letter-spacing:.06em;text-transform:none}
+ul{list-style:none;margin:0;padding:0;background:var(--card);
+   border:1px solid var(--line);border-radius:14px;overflow:hidden}
+li{display:flex;justify-content:space-between;align-items:baseline;
+   padding:12px 16px;font-size:15px}
 li+li{border-top:1px solid var(--line)}
-li b{font-variant-numeric:tabular-nums}
+li b{font-variant-numeric:tabular-nums;font-weight:700}
+li b.unread{color:var(--warn);font-weight:600;font-size:14px}
 li span{color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums}
-footer{margin-top:24px;color:var(--mut);font-size:12px;text-align:center;line-height:1.7}
+li.empty{color:var(--mut);font-size:14px;justify-content:center}
+
+footer{margin-top:22px;color:var(--dim);font-size:12px;
+       text-align:center;line-height:1.75}
+#meta{font-variant-numeric:tabular-nums}
 </style>
 
-<h1>엘리베이터 실시간 층수</h1>
+<header><div class=in>🛗 엘리베이터 실시간 층수</div></header>
 
-<div class=card>
-  <div class="big mut" id=fl>–</div>
-  <div class="rel mut" id=rel>&nbsp;</div>
-  <div class=age><i class="dot" id=dot></i><span id=age>불러오는 중…</span></div>
-  <div class=note id=note></div>
-  <div class=pick>
-    <span>내 층</span>
-    <select id=my><option value="">선택 안 함</option></select>
+<div class=wrap>
+  <div class=card>
+    <div class=big id=fl>–</div>
+    <div class=badge><i class="dot" id=dot></i><span id=age>불러오는 중…</span></div>
+    <div class=note id=note></div>
   </div>
+
+  <h2>최근 이동</h2>
+  <ul id=log><li class=empty>기록을 불러오는 중…</li></ul>
+
+  <details>
+    <summary>이 장치가 뭔가요?</summary>
+    <div class=body>
+      <p>승강장 표시기를 <b>카메라로 찍어서</b> 지금 몇 층인지 읽습니다.
+         엘리베이터에는 아무것도 연결하지 않고, 표시기를 바라보게 붙여두기만 했습니다.</p>
+      <p>층마다 표시기 모습을 미리 한 장씩 등록해두고,
+         지금 보이는 화면이 <b>그중 어느 것과 가장 닮았는지</b>로 판단합니다.</p>
+      <p>닮은 정도가 기준에 못 미치면 층을 바꾸지 않고 <b>「?」</b>로 둡니다.
+         틀린 층을 자신 있게 말하면 여러분이 헛걸음하기 때문에,
+         <b>애매하면 모른다고 말하도록</b> 만들었습니다.</p>
+    </div>
+  </details>
+
+  <a id=form class=link href="#" target="_blank" rel="noopener">의견 남기기</a>
+
+  <footer>
+    승강장 표시기를 카메라로 읽습니다 · 스마트 엘리베이터 프로젝트<br>
+    <span id=meta></span>
+  </footer>
 </div>
-
-<h2>최근 이동</h2>
-<ul id=log><li><span>기록을 불러오는 중…</span></li></ul>
-
-<footer>
-  스마트 엘리베이터 프로젝트 · 승강장 표시기를 카메라로 읽습니다<br>
-  <span id=meta></span>
-</footer>
 
 <script>
 const URL_="https://czsyjjgerdhtjqwbhnry.supabase.co/rest/v1";
@@ -70,8 +149,10 @@ const H={apikey:KEY};
 //    학생이 헛걸음한다. 그래서 값의 나이를 값과 같은 크기로 취급한다.
 const FRESH=45, STALE=180, BLIND=40;
 
+// 의견 받을 곳(구글 폼 등). 비워두면 링크 자체를 그리지 않는다.
+const FORM_URL="";
+
 const $=id=>document.getElementById(id);
-const num=s=>{const m=String(s).match(/-?\d+/);return m?+m[0]:null};
 
 function ago(sec){
   if(sec<10) return "방금";
@@ -85,14 +166,6 @@ function hhmm(iso){
   return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
 }
 
-// 내 층 대비 어디 있는지. "타러 갈까 계단 갈까" 가 이 페이지의 목적이다.
-function relative(cur,my){
-  if(my===null||cur===null) return "";
-  const d=cur-my;
-  if(d===0) return "지금 내 층";
-  return Math.abs(d)+"층 "+(d>0?"위":"아래");
-}
-
 let lastFloor=null;
 
 async function tick(){
@@ -103,31 +176,35 @@ async function tick(){
   }catch(e){}
 
   if(!st){
-    $("fl").textContent="–"; $("fl").className="big mut";
+    $("fl").textContent="–"; $("fl").style.color="";
     $("age").textContent="서버에 연결할 수 없습니다";
-    $("dot").className="dot bgbad"; return;
+    $("dot").className="dot"; $("dot").style.background="var(--bad)";
+    $("note").style.display="none";
+    return;
   }
 
   // 🔴 나이는 서버가 찍은 시각으로 잰다. 보드에는 시계가 없다.
+  //    폰 시계가 틀리면 음수가 나오므로 0 으로 막는다.
   const age=Math.max(0,Math.round((Date.now()-new Date(st.updated_at))/1000));
   const blind=st.blind_s|0;
-  const dead=age>STALE, old=age>FRESH;
+  const dead=age>STALE, old=age>FRESH, unread=blind>BLIND;
 
-  $("fl").innerHTML=st.floor==="?"?'<span class=warn>?</span>'
-                    :st.floor+"<small>층</small>";
-  $("fl").className="big "+(dead?"bad":(old||blind>BLIND?"warn":"ok"));
-
-  const my=$("my").value===""?null:+$("my").value;
-  const rel=relative(num(st.floor),my);
-  $("rel").textContent=(dead||blind>BLIND)?"":rel;
-  $("rel").className="rel "+(rel==="지금 내 층"?"ok":"mut");
+  // 층 표시. "?" 는 숨기지 않고 그대로 보여준다 — 모르면 모른다고 한다.
+  const fl=$("fl");
+  fl.innerHTML = st.floor==="?" ? "?" : st.floor+"<small>층</small>";
+  fl.style.color = dead?"var(--bad)":((old||unread)?"var(--warn)":"var(--fg)");
+  if(st.floor!==lastFloor && lastFloor!==null){
+    fl.classList.remove("pop"); void fl.offsetWidth; fl.classList.add("pop");
+  }
 
   // ⚠️ 통신이 살아있는 것과 판독이 되는 것은 다르다.
   //    못 읽는 중인데 "실시간" 이라고 쓰면 배지가 숫자를 반박한다.
-  $("age").textContent=dead?("마지막 확인 "+ago(age)):
-    (blind>BLIND?"장치는 연결됨":(age<10?"실시간":ago(age)+" 확인"));
-  $("dot").className="dot "+(dead?"bgbad":((old||blind>BLIND)?"bgwarn":"bgok"))
-                    +(dead?"":" blink");
+  $("age").textContent = dead ? ("마지막 확인 "+ago(age))
+                       : unread ? "장치는 연결됨"
+                       : (age<10 ? "실시간" : ago(age)+" 확인");
+  const dot=$("dot");
+  dot.className="dot"+(dead?"":" blink");
+  dot.style.background = dead?"var(--bad)":((old||unread)?"var(--warn)":"var(--ok)");
 
   // 두 가지 고장은 다른 문장으로 말해야 한다.
   const n=$("note");
@@ -135,8 +212,8 @@ async function tick(){
     n.className="note bad"; n.style.display="block";
     n.innerHTML="<b>장치가 응답하지 않습니다.</b><br>위 숫자는 "+ago(age)+
       " 값이라 지금과 다를 수 있습니다.";
-  }else if(blind>BLIND){
-    n.className="note"; n.style.display="block";
+  }else if(unread){
+    n.className="note warn"; n.style.display="block";
     n.innerHTML="<b>표시기를 "+ago(blind)+"부터 읽지 못하고 있습니다.</b><br>"+
       "장치는 살아 있지만 화면이 가려졌거나 카메라가 틀어졌을 수 있습니다.";
   }else n.style.display="none";
@@ -153,16 +230,15 @@ async function loadLog(){
       "&order=at.desc&limit=12",{headers:H,cache:"no-store"});
     const ev=await r.json();
     $("log").innerHTML=ev.length?ev.map(e=>{
-      const s=Math.round((Date.now()-new Date(e.at))/1000);
-      return "<li><b>"+e.floor+"층</b><span>"+hhmm(e.at)+" · "+ago(s)+"</span></li>";
-    }).join(""):"<li><span>아직 기록이 없습니다</span></li>";
+      const s=Math.max(0,Math.round((Date.now()-new Date(e.at))/1000));
+      // "?" 도 이력에 남는다. "?층" 이라고 쓰면 그런 층이 있는 것처럼 읽힌다.
+      const lbl=e.floor==="?" ? "<b class=unread>읽지 못함</b>" : "<b>"+e.floor+"층</b>";
+      return "<li>"+lbl+"<span>"+hhmm(e.at)+" · "+ago(s)+"</span></li>";
+    }).join(""):"<li class=empty>아직 기록이 없습니다</li>";
   }catch(e){}
 }
 
-const sel=$("my");
-for(let f=15;f>=1;f--){const o=document.createElement("option");o.value=f;o.textContent=f+"층";sel.appendChild(o)}
-sel.value=localStorage.getItem("myfloor")||"";
-sel.onchange=()=>{localStorage.setItem("myfloor",sel.value);tick()};
+if(FORM_URL){ const a=$("form"); a.href=FORM_URL; a.style.display="block"; }
 
 tick(); loadLog();
 setInterval(tick,3000);
