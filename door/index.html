@@ -1,0 +1,221 @@
+<!doctype html><html lang=ko><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>엘리베이터 — 문은 지금 열려 있나</title>
+<meta name=theme-color content="#0b0e14">
+<style>
+:root{
+  --bg:#0b0e14; --fg:#e8eef7; --mut:#7d8899; --dim:#5b6675;
+  --card:#141a23; --line:#222b38; --sunk:#0b0e14;
+  --brand:#3b82f6; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --okbg:#0e2013; --warnbg:#1d1608; --warnln:#3d2f0c; --warnfg:#e3c268;
+  --badbg:#1f1113; --badln:#4a1f22; --badfg:#f0a3a0;
+}
+@media (prefers-color-scheme:light){
+  :root{
+    --bg:#f6f8fb; --fg:#0f172a; --mut:#64748b; --dim:#94a3b8;
+    --card:#ffffff; --line:#e2e8f0; --sunk:#f1f5f9;
+    --brand:#2563eb; --ok:#16a34a; --warn:#b45309; --bad:#dc2626;
+    --okbg:#f0fdf4; --warnbg:#fffbeb; --warnln:#fde68a; --warnfg:#92400e;
+    --badbg:#fef2f2; --badln:#fecaca; --badfg:#991b1b;
+  }
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);
+     font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif}
+.wrap{max-width:560px;margin-inline:auto;padding:0 16px 36px}
+header{background:var(--brand);color:#fff;padding-top:env(safe-area-inset-top)}
+header .in{max-width:560px;margin-inline:auto;height:54px;display:flex;
+           align-items:center;justify-content:center;font-size:15px;font-weight:600}
+nav{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
+nav a{font-size:12.5px;color:var(--mut);text-decoration:none;border:1px solid var(--line);
+      border-radius:999px;padding:5px 12px;background:var(--card)}
+nav a.on{color:var(--fg);border-color:var(--brand)}
+
+#big{margin-top:16px;border:2px solid var(--line);background:var(--card);
+     border-radius:16px;padding:20px 16px;text-align:center}
+#bt{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin:0}
+#bs{font-size:13px;color:var(--mut);margin-top:6px}
+.d-open{border-color:var(--warn)!important} .d-open #bt{color:var(--warn)}
+.d-shut{border-color:var(--ok)!important}   .d-shut #bt{color:var(--ok)}
+.d-dead{border-color:var(--bad)!important}  .d-dead #bt{color:var(--bad)}
+
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+       border-radius:999px;padding:4px 11px;margin-top:10px}
+.b-ok{background:var(--okbg);color:var(--ok)}
+.b-warn{background:var(--warnbg);color:var(--warnfg);border:1px solid var(--warnln)}
+.b-bad{background:var(--badbg);color:var(--badfg);border:1px solid var(--badln)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+.note{border-radius:12px;padding:11px 13px;font-size:13px;margin-top:12px;line-height:1.55}
+.n-warn{background:var(--warnbg);border:1px solid var(--warnln);color:var(--warnfg)}
+.n-bad{background:var(--badbg);border:1px solid var(--badln);color:var(--badfg)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+      padding:14px;margin-top:12px}
+h2{font-size:13px;color:var(--mut);margin:0 0 10px;font-weight:600}
+
+/* 거리 막대 — 임계값이 어디인지 보여야 "왜 열림이라 했는지" 가 보인다 */
+#gauge{position:relative;height:34px;background:var(--sunk);border-radius:9px;
+       border:1px solid var(--line);overflow:hidden}
+#gfill{position:absolute;inset:0;width:0;background:var(--brand);opacity:.35;transition:width .3s}
+#gth{position:absolute;top:0;bottom:0;width:2px;background:var(--warn)}
+#gtxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.lab{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);margin-top:6px}
+
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+td{padding:6px 2px;border-bottom:1px solid var(--line);color:var(--mut)}
+td:last-child{text-align:right;color:var(--fg);font-weight:600}
+tr:last-child td{border-bottom:none}
+.cap{font-size:12px;color:var(--dim);margin-top:9px;line-height:1.55}
+footer{margin-top:20px;font-size:12px;color:var(--dim);text-align:center;line-height:1.7}
+</style>
+
+<header><div class=in>캐빈 초음파 — 문은 지금 열려 있나</div></header>
+
+<div class=wrap>
+<nav>
+  <a href="../">실시간 층</a>
+  <a href="../judge/">카메라 판단</a>
+  <a href="./" class=on>초음파 문</a>
+  <a href="../dashboard/">관리자 대시보드</a>
+</nav>
+
+<div id=big class=d-shut>
+  <div id=bt>연결 중…</div>
+  <div id=bs>서버에서 상태를 받아오는 중입니다</div>
+  <div id=badge class="badge b-warn"><span class=dot></span><span id=btxt>확인 중</span></div>
+</div>
+
+<div id=note class="note n-warn" style="display:none"></div>
+
+<div class=card>
+  <h2>초음파가 재고 있는 거리</h2>
+  <div id=gauge>
+    <div id=gfill></div><div id=gth></div>
+    <div id=gtxt>—</div>
+  </div>
+  <div class=lab><span>0 mm (문에 닿음)</span><span id=lmax>—</span></div>
+  <div class=cap>노란 선이 <b>임계값</b>입니다. 이보다 <b>멀면 열림</b>, 가까우면 닫힘으로 봅니다.
+    임계값은 문 닫힘·열림을 각각 5초씩 재서 <b>겹치지 않는지 확인한 뒤</b> 정한 값입니다.</div>
+</div>
+
+<div class=card>
+  <h2>정차 기록</h2>
+  <table>
+    <tr><td>지금 열린 지</td><td id=t_now>—</td></tr>
+    <tr><td>누적 정차</td><td id=t_stops>—</td></tr>
+    <tr><td>직전 정차 개방 시간</td><td id=t_last>—</td></tr>
+    <tr><td>센서 상태</td><td id=t_fault>—</td></tr>
+    <tr><td>값을 받은 때</td><td id=t_at>—</td></tr>
+  </table>
+</div>
+
+<div class=card>
+  <h2>최근 정차</h2>
+  <table id=evs><tr><td>불러오는 중…</td></tr></table>
+  <div class=cap>이 장치는 <b>판정도 개입도 하지 않습니다.</b> 거리만 재서 정차를 자릅니다.
+    카메라 판정과 별개의 채널이라야 "개입이 정말 효과가 있었나" 를 따질 수 있습니다.</div>
+</div>
+
+<footer>
+  캐빈 안 장치 D(XIAO ESP32-C6 + HC-SR04). 서보·ESP-NOW 없는 순수 관측기입니다.<br>
+  <span id=meta></span>
+</footer>
+</div>
+
+<script>
+const URL_="https://czsyjjgerdhtjqwbhnry.supabase.co/rest/v1";
+const KEY="sb_publishable_cQ5rwL6BfCDy555B_e72ZA_iihmUrhY";
+const DEV="D1";
+const H={apikey:KEY};
+
+// 🔴 값의 나이를 값과 같은 크기로 취급한다. 하트비트가 20초라 그보다 넉넉히 잡는다.
+//    "문이 안 바뀐 것" 과 "보드가 죽은 것" 을 구분하려고 하트비트를 두는 것이므로,
+//    그 구분을 화면에서 다시 뭉개면 하트비트를 둔 의미가 없다.
+const FRESH=45, STALE=180;
+
+const $=id=>document.getElementById(id);
+function ago(s){
+  if(s<10) return "방금";
+  if(s<60) return Math.round(s)+"초 전";
+  if(s<3600) return Math.floor(s/60)+"분 전";
+  if(s<86400) return Math.floor(s/3600)+"시간 전";
+  return Math.floor(s/86400)+"일 전";
+}
+function secs(ms){ return ms>=1000 ? (ms/1000).toFixed(1)+"초" : ms+"ms" }
+
+async function tick(){
+  let st=null, err=null;
+  try{
+    const r=await fetch(URL_+"/door_state?select=*&device=eq."+DEV,{headers:H,cache:"no-store"});
+    st=(await r.json())[0];
+  }catch(e){ err=e }
+
+  if(err||!st){
+    $("big").className="d-dead";
+    $("bt").textContent="아직 값이 없다";
+    $("bs").textContent = err ? "서버에 닿지 못했습니다" : "이 장치가 아직 아무것도 올린 적이 없습니다";
+    setBadge("bad","연결 안 됨");
+    return;
+  }
+
+  const age=(Date.now()-new Date(st.updated_at).getTime())/1000;
+
+  $("bt").textContent = st.open ? "문이 열려 있다" : "문이 닫혀 있다";
+  $("bs").textContent = st.open
+    ? "초음파가 "+st.dist_mm+"mm — 임계값 "+st.th_mm+"mm 보다 멀다"
+    : "초음파가 "+st.dist_mm+"mm — 임계값 "+st.th_mm+"mm 안쪽";
+  $("big").className = age>STALE ? "d-dead" : (st.open ? "d-open" : "d-shut");
+
+  $("note").style.display="none";
+  if(age<=FRESH) setBadge("ok","실시간");
+  else if(age<=STALE){
+    setBadge("warn","전송 끊김");
+    showNote("warn","장치가 "+ago(age)+"부터 값을 못 올리고 있습니다. "
+      +"위 상태는 그때 것입니다. (하트비트는 20초마다 옵니다)");
+  }else{
+    setBadge("bad","마지막 확인 "+ago(age));
+    showNote("bad","장치가 꺼져 있거나 핫스팟이 끊겼습니다. 위 상태는 "+ago(age)+" 값입니다.");
+  }
+
+  // ── 거리 게이지 ──
+  // 축의 최댓값은 임계값의 2배로 잡는다. 5.1m(타임아웃) 를 축으로 쓰면
+  // 임계값 근처가 전부 왼쪽 끝에 뭉쳐서 "왜 그렇게 판정했는지" 가 안 보인다.
+  const max=Math.max(st.th_mm*2, 400);
+  const mm=Math.min(st.dist_mm,max);
+  $("gfill").style.width=(mm/max*100).toFixed(1)+"%";
+  $("gfill").style.background = st.open ? "var(--warn)" : "var(--ok)";
+  $("gth").style.left=(st.th_mm/max*100).toFixed(1)+"%";
+  $("gtxt").textContent = st.dist_mm>=5100 ? "∞ (에코 없음)" : st.dist_mm+" mm";
+  $("lmax").textContent=max+" mm";
+
+  $("t_now").textContent   = st.open ? secs(st.open_ms) : "—";
+  $("t_stops").textContent = st.stops+"건";
+  $("t_last").textContent  = st.last_open_ms ? secs(st.last_open_ms) : "—";
+  $("t_fault").textContent = st.fault;
+  $("t_fault").style.color = st.fault==="OK" ? "var(--ok)" : "var(--bad)";
+  $("t_at").textContent    = ago(age);
+  $("meta").textContent    = "장치 "+st.device+" · 부팅 "+st.boot+"회차";
+
+  try{
+    const r=await fetch(URL_+"/door_events?select=at,stop,open_ms,reopen&device=eq."+DEV
+      +"&order=at.desc&limit=8",{headers:H,cache:"no-store"});
+    const ev=await r.json();
+    $("evs").innerHTML = ev.length
+      ? "<tr><td>정차</td><td>개방 시간</td></tr>"+ev.map(e=>
+          "<tr><td>#"+e.stop+" · "+ago((Date.now()-new Date(e.at).getTime())/1000)
+          +(e.reopen?" · 재개방":"")+"</td><td>"+secs(e.open_ms)+"</td></tr>").join("")
+      : "<tr><td>아직 기록된 정차가 없습니다</td></tr>";
+  }catch(e){}
+}
+
+function setBadge(k,t){ $("badge").className="badge b-"+k; $("btxt").textContent=t }
+function showNote(k,t){ const n=$("note"); n.className="note n-"+k; n.textContent=t; n.style.display="" }
+
+tick();
+setInterval(()=>{ if(!document.hidden) tick() },3000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tick() });
+</script>
+</html>
