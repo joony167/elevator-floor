@@ -1,0 +1,272 @@
+<!doctype html><html lang=ko><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>엘리베이터 — 카메라는 지금 뭘 보고 있나</title>
+<meta name=theme-color content="#0b0e14">
+<style>
+:root{
+  --bg:#0b0e14; --fg:#e8eef7; --mut:#7d8899; --dim:#5b6675;
+  --card:#141a23; --line:#222b38; --sunk:#0b0e14;
+  --brand:#3b82f6; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --okbg:#0e2013; --warnbg:#1d1608; --warnln:#3d2f0c; --warnfg:#e3c268;
+  --badbg:#1f1113; --badln:#4a1f22; --badfg:#f0a3a0;
+}
+@media (prefers-color-scheme:light){
+  :root{
+    --bg:#f6f8fb; --fg:#0f172a; --mut:#64748b; --dim:#94a3b8;
+    --card:#ffffff; --line:#e2e8f0; --sunk:#f1f5f9;
+    --brand:#2563eb; --ok:#16a34a; --warn:#b45309; --bad:#dc2626;
+    --okbg:#f0fdf4; --warnbg:#fffbeb; --warnln:#fde68a; --warnfg:#92400e;
+    --badbg:#fef2f2; --badln:#fecaca; --badfg:#991b1b;
+  }
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);
+     font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+     -webkit-text-size-adjust:100%}
+.wrap{max-width:560px;margin-inline:auto;padding:0 16px 36px}
+header{background:var(--brand);color:#fff;padding-top:env(safe-area-inset-top)}
+header .in{max-width:560px;margin-inline:auto;height:54px;display:flex;
+           align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600}
+nav{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
+nav a{font-size:12.5px;color:var(--mut);text-decoration:none;border:1px solid var(--line);
+      border-radius:999px;padding:5px 12px;background:var(--card)}
+nav a.on{color:var(--fg);border-color:var(--brand)}
+
+/* 판정 — 이 페이지에서 제일 큰 것 */
+#verdict{margin-top:16px;border:2px solid var(--line);background:var(--card);
+         border-radius:16px;padding:20px 16px;text-align:center}
+#vtitle{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0}
+#vsub{font-size:13px;color:var(--mut);margin-top:6px}
+.v-press{border-color:var(--ok)!important} .v-press #vtitle{color:var(--ok)}
+.v-hold {border-color:var(--brand)!important} .v-hold #vtitle{color:var(--brand)}
+.v-dead {border-color:var(--bad)!important} .v-dead #vtitle{color:var(--bad)}
+
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+       border-radius:999px;padding:4px 11px;margin-top:10px}
+.b-ok{background:var(--okbg);color:var(--ok)}
+.b-warn{background:var(--warnbg);color:var(--warnfg);border:1px solid var(--warnln)}
+.b-bad{background:var(--badbg);color:var(--badfg);border:1px solid var(--badln)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+.note{border-radius:12px;padding:11px 13px;font-size:13px;margin-top:12px;line-height:1.55}
+.n-warn{background:var(--warnbg);border:1px solid var(--warnln);color:var(--warnfg)}
+.n-bad{background:var(--badbg);border:1px solid var(--badln);color:var(--badfg)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+      padding:14px;margin-top:12px}
+h2{font-size:13px;color:var(--mut);margin:0 0 10px;font-weight:600;letter-spacing:.02em}
+
+#shot{width:192px;height:192px;image-rendering:pixelated;border-radius:12px;
+      background:var(--sunk);display:block;margin:0 auto;border:1px solid var(--line)}
+.cap{text-align:center;font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+
+.bar{margin:9px 0}
+.bar .t{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.bar .t em{font-style:normal;color:var(--mut);font-variant-numeric:tabular-nums}
+.bar .g{height:9px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.bar .f{height:100%;width:0;border-radius:5px;transition:width .25s}
+.bar.top .t{font-weight:700}
+
+.chain{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut);
+       flex-wrap:wrap;justify-content:center;margin-top:4px}
+.step{border:1px solid var(--line);border-radius:9px;padding:6px 10px;background:var(--sunk)}
+.step b{color:var(--fg)}
+.step.pass{border-color:var(--ok);color:var(--ok)}
+.step.pass b{color:var(--ok)}
+
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+td{padding:6px 2px;border-bottom:1px solid var(--line);color:var(--mut)}
+td:last-child{text-align:right;color:var(--fg);font-weight:600}
+tr:last-child td{border-bottom:none}
+footer{margin-top:20px;font-size:12px;color:var(--dim);text-align:center;line-height:1.7}
+</style>
+
+<header><div class=in>캐빈 카메라 — 지금 무엇을 보고 무엇이라 했나</div></header>
+
+<div class=wrap>
+
+<nav>
+  <a href="../">실시간 층</a>
+  <a href="./" class=on>카메라 판단</a>
+  <a href="../door/">초음파 문</a>
+  <a href="../dashboard/">관리자 대시보드</a>
+</nav>
+
+<div id=verdict class=v-hold>
+  <div id=vtitle>연결 중…</div>
+  <div id=vsub>서버에서 상태를 받아오는 중입니다</div>
+  <div id=badge class="badge b-warn"><span class=dot></span><span id=badgetxt>확인 중</span></div>
+</div>
+
+<div id=note class="note n-warn" style="display:none"></div>
+
+<div class=card>
+  <h2>모델이 실제로 본 그림</h2>
+  <img id=shot alt="모델 입력 96x96">
+  <div class=cap>96×96. 사람 눈에 보기 좋으라고 만든 화면이 아니라
+    <b>판단의 입력 그 자체</b>입니다. 흐릿한 건 정상입니다.</div>
+</div>
+
+<div class=card>
+  <h2>세 가지 중 무엇이라 했나</h2>
+  <div id=bars></div>
+</div>
+
+<div class=card>
+  <h2>누를지 정하는 순서</h2>
+  <div class=chain id=chain></div>
+  <div class=cap>확률 하나로 바로 안 누릅니다. <b>임계값을 넘고 · 연속으로 넘고 · 쿨다운이 지나야</b> 누릅니다.
+    애매하면 안 누르는 쪽이 안전하기 때문입니다.</div>
+</div>
+
+<div class=card>
+  <h2>장치</h2>
+  <table>
+    <tr><td>누른 횟수</td><td id=t_press>—</td></tr>
+    <tr><td>마지막으로 누른 때</td><td id=t_last>—</td></tr>
+    <tr><td>문</td><td id=t_door>—</td></tr>
+    <tr><td>추론 / 한 바퀴</td><td id=t_ms>—</td></tr>
+    <tr><td>손(서보)과의 통신</td><td id=t_link>—</td></tr>
+    <tr><td>값을 받은 때</td><td id=t_at>—</td></tr>
+  </table>
+</div>
+
+<footer>
+  캐빈 안 장치 B(XIAO ESP32-S3) 의 판정을 폰이 중계해 올립니다.<br>
+  <span id=meta></span>
+</footer>
+</div>
+
+<script>
+const URL_="https://czsyjjgerdhtjqwbhnry.supabase.co/rest/v1";
+const KEY="sb_publishable_cQ5rwL6BfCDy555B_e72ZA_iihmUrhY";
+const DEV="B1";
+const H={apikey:KEY};
+
+// 🔴 이 페이지의 실패 모드는 "멈춘 화면을 실시간이라고 우기는 것" 이다.
+//    중계는 폰이 한다. 폰이 주머니에 들어가거나 WiFi 가 끊기면 값이 그냥 멎는데,
+//    화면은 아무 일 없다는 듯 마지막 판정을 계속 보여준다. 그게 제일 나쁘다.
+//    그래서 UT-16 과 같은 규칙을 쓴다 — 값의 나이를 값과 같은 크기로 취급한다.
+const FRESH=8, STALE=180;
+
+// 라벨을 사람 말로. 펌웨어 라벨은 영문이어야 하지만(생성 코드에 들어간다),
+// 보는 사람에게 open_blocked 라고 쓸 이유는 없다.
+const KO={
+  door_closed :{t:"문이 닫혀 있다",  s:"누를 일이 없다",           c:"hold"},
+  open_blocked:{t:"밖에 사람이 있다", s:"누르면 안 된다",           c:"hold"},
+  open_clear  :{t:"열렸고 밖은 비었다",s:"눌러도 되는 상황",        c:"press"}
+};
+const COLOR={door_closed:"#7d8899",open_blocked:"#d29922",open_clear:"#3fb950"};
+
+const $=id=>document.getElementById(id);
+function ago(sec){
+  if(sec<10) return "방금";
+  if(sec<60) return Math.round(sec)+"초 전";
+  if(sec<3600) return Math.floor(sec/60)+"분 전";
+  if(sec<86400) return Math.floor(sec/3600)+"시간 전";
+  return Math.floor(sec/86400)+"일 전";
+}
+
+let lastPressAt=null;
+
+async function tick(){
+  let st=null, err=null;
+  try{
+    const r=await fetch(URL_+"/judge_state?select=*&device=eq."+DEV,{headers:H,cache:"no-store"});
+    st=(await r.json())[0];
+  }catch(e){ err=e }
+
+  if(err||!st){
+    $("verdict").className="v-dead";
+    $("vtitle").textContent="아직 값이 없다";
+    $("vsub").textContent = err ? "서버에 닿지 못했습니다" : "이 장치가 아직 아무것도 올린 적이 없습니다";
+    setBadge("bad","연결 안 됨");
+    return;
+  }
+
+  const age=(Date.now()-new Date(st.updated_at).getTime())/1000;
+
+  // ── 판정 ──
+  const ko=KO[st.top]||{t:st.top,s:"",c:"hold"};
+  $("vtitle").textContent=ko.t;
+  $("vsub").textContent=ko.s+" · "+(st.prob*100).toFixed(0)+"% 확신";
+  $("verdict").className = age>STALE ? "v-dead" : ("v-"+ko.c);
+
+  // ── 나이 배지 — 통신 상태와 판정 상태를 한 배지에 섞지 않는다 (UT-16 삽질 ⑦) ──
+  $("note").style.display="none";
+  if(age<=FRESH){
+    setBadge("ok","실시간");
+  }else if(age<=STALE){
+    setBadge("warn","중계 끊김");
+    showNote("warn","중계하는 폰이 "+ago(age)+"부터 값을 못 올리고 있습니다. "
+      +"위 판정은 그때 것이라 지금과 다를 수 있습니다.");
+  }else{
+    setBadge("bad","마지막 확인 "+ago(age));
+    showNote("bad","장치 또는 중계 폰이 꺼져 있습니다. 위 판정은 "+ago(age)+" 값입니다.");
+  }
+
+  // ── 확률 막대 ──
+  const probs=st.probs||{};
+  const keys=Object.keys(probs).length?Object.keys(probs):[st.top];
+  $("bars").innerHTML=keys.map(k=>{
+    const p=probs[k]!==undefined?probs[k]:(k===st.top?st.prob:0);
+    const isTop=(k===st.top);
+    return '<div class="bar'+(isTop?" top":"")+'">'
+      +'<div class=t><span>'+((KO[k]&&KO[k].t)||k)+'</span><em>'+(p*100).toFixed(1)+'%</em></div>'
+      +'<div class=g><div class=f style="width:'+(p*100).toFixed(1)+'%;background:'
+      +(COLOR[k]||"#3b82f6")+'"></div></div></div>';
+  }).join("");
+
+  // ── 판단 사슬 ──
+  const overTh = st.prob>=st.th;
+  const overN  = st.streak>=st.need;
+  $("chain").innerHTML=
+     step(overTh, "확률 "+(st.prob*100).toFixed(0)+"% ≥ <b>"+(st.th*100).toFixed(0)+"%</b>")
+    +'<span>→</span>'
+    +step(overN,  "연속 <b>"+st.streak+"/"+st.need+"</b> 프레임")
+    +'<span>→</span>'
+    +step(st.state==="PRESS", "상태 <b>"+st.state+"</b>");
+
+  // ── 사진 ──
+  if(st.img) $("shot").src="data:image/jpeg;base64,"+st.img;
+
+  // ── 표 ──
+  $("t_press").textContent=st.press+"회";
+  $("t_door").textContent=st.door_open?"열림":"닫힘";
+  $("t_ms").textContent=st.infer_ms+"ms / "+st.cycle_ms+"ms";
+  $("t_link").textContent = st.link>0?"정상":st.link<0?"실패":"아직 없음";
+  $("t_link").style.color = st.link>0?"var(--ok)":st.link<0?"var(--bad)":"";
+  $("t_at").textContent=ago(age);
+  $("meta").textContent="장치 "+st.device+" · 부팅 "+st.boot+"회차";
+
+  // 마지막으로 누른 때는 이력에서 가져온다 — 상태 한 줄에는 "언제" 가 없다
+  if(lastPressAt===null||st.press!==window._lastPress){
+    window._lastPress=st.press;
+    try{
+      const r=await fetch(URL_+"/judge_events?select=at&device=eq."+DEV
+        +"&kind=eq.PRESS&order=at.desc&limit=1",{headers:H,cache:"no-store"});
+      const e=(await r.json())[0];
+      lastPressAt=e?e.at:false;
+    }catch(e){}
+  }
+  $("t_last").textContent = lastPressAt
+    ? ago((Date.now()-new Date(lastPressAt).getTime())/1000)
+    : "아직 없음";
+}
+
+function step(ok,html){ return '<span class="step'+(ok?" pass":"")+'">'+html+'</span>' }
+function setBadge(k,txt){
+  $("badge").className="badge b-"+k;
+  $("badgetxt").textContent=txt;
+}
+function showNote(k,txt){
+  const n=$("note"); n.className="note n-"+k; n.textContent=txt; n.style.display="";
+}
+
+tick();
+// 화면을 안 보고 있으면 굳이 부르지 않는다. 남의 폰 배터리다.
+setInterval(()=>{ if(!document.hidden) tick() },2000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tick() });
+</script>
+</html>
